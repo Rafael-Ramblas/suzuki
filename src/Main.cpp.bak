@@ -1,0 +1,125 @@
+#include "LiquidCrystal_I2C.h"
+#include <Arduino.h>
+#include <sys/time.h>
+#include <string.h>
+#include <time.h>
+#include "WiFiManager.h"
+#include "esp_sleep.h"
+#include "sha1.h"
+#include "TOTP++.h"
+#include "lwip/err.h"
+#include "apps/sntp/sntp.h"
+
+// firmware version from git rev-list command
+String VERSION_CODE = "rev";
+#ifdef SRC_REV
+int VCODE = SRC_REV;
+#else
+int VCODE = 0;
+#endif
+// OTP setup ==> test code (from GoogleAuth)
+//uint8_t hmacKey[] = {0xea,0x41,0x68,0x5c,0x9b,0x10,0x13,0x5d,0x8c,0xa0,0x35,0x05,0x38,0xcb,0xa9,0x96,0x75,0xa0,0x5a,0xaf};
+
+//GITHUB
+//rhewtbdgpgynydc2
+//uint8_t hmacKey[] = {0x72,0x68,0x65,0x77,0x74,0x62,0x64,0x67,0x70,0x67,0x79,0x6e,0x79,0x64,0x63,0x32};
+
+//google
+//mnmc dbop 5qeg xtk3 fe4m dnxt 2vkf vnly
+//uint8_t hmacKey[] = {0x6d,0x6e,0x6d,0x63,0x64,0x62,0x6f,0x70,0x35,0x71,0x65,0x67,0x78,0x74,0x6b,0x33,0x66,0x65,0x34,0x6d,0x64,0x6e,0x78,0x74,0x32,0x76,0x6b,0x66,0x76,0x6e,0x6c,0x79};
+
+TOTP totp = TOTP();
+char code[6];
+// Initialize the OLED display using Wire library
+// Power vars
+
+// set the LCD number of columns and rows
+int lcdColumns = 16;
+int lcdRows = 2;
+
+// set LCD address, number of columns and rows
+// if you don't know your display address, run an I2C scanner sketch
+LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);  
+
+
+/**************************   NTP HANDLING   **********************************/
+
+static void initSNTP(void) {
+   lcd.setCursor(0, 0);
+  lcd.printstr("-->Initializing SNTP");
+  configTime(0,0,"pool.ntp.org");
+}
+
+static void getTimeFromSNTP(void) {
+  initSNTP();
+  // wait for time to be set
+  time_t now = 0;
+  struct tm timeinfo = {0};
+  int retry = 0;
+  const int retry_count = 20;
+   lcd.setCursor(0, 0);
+  lcd.printstr("-->Waiting for system time to be set.");
+  while (timeinfo.tm_year < (2019 - 1900) && ++retry < retry_count) {
+     lcd.setCursor(0, 0);
+    lcd.printstr(".");
+    delay(10);
+    time(&now);
+    localtime_r(&now, &timeinfo);
+  }
+   lcd.setCursor(0, 0);
+  lcd.printstr("ready.");
+}
+
+
+void calcOTPCodeAndPrintScreen() {
+  time_t now;
+  struct tm timeinfo;
+  char timebuf[64];
+  
+  char *newCode = totp.getCode("mnmcdbop5qegxtk3fe4mdnxt2vkfvnly", 30, time(&now));
+  localtime_r(&now, &timeinfo);
+  strftime(timebuf, sizeof(timebuf),"%Y %a, %d %b %H:%M:%S", &timeinfo);
+  if (strcmp(code, newCode) != 0) {
+    strcpy(code, newCode);
+    if (timeinfo.tm_year < (2019 - 1900)) {
+       lcd.setCursor(0, 0);
+      lcd.printstr("Time is not set yet! PRESS RIGHT BUTTON! (connect to NTP)");
+    } else {
+       lcd.setCursor(0, 0);
+      lcd.printstr(timebuf);
+       lcd.setCursor(0, 1);
+      lcd.printstr(" ==> OTP code:");
+      lcd.setCursor(0, 0);
+      lcd.printstr(code);
+    }
+  }
+}
+
+
+/******************************************************************************
+*****************************   S E T U P   ***********************************
+******************************************************************************/
+
+void setup() {
+   lcd.init();
+  // turn on LCD backlight           
+   lcd.setCursor(0, 0);           
+ lcd.printstr("== ESP32 Booting ==");
+
+  // Set timezone for America/Bogota
+  setenv("TZ", "<-03>3", 1);
+  tzset();
+  // Splash Window
+  getTimeFromSNTP();
+  delay(5000);
+   lcd.setCursor(0, 0);
+ lcd.printstr("== Setup ready ==");
+}
+
+/******************************************************************************
+*****************************    L O O P    ***********************************
+******************************************************************************/
+
+void loop() {
+calcOTPCodeAndPrintScreen();
+}
