@@ -25,9 +25,9 @@ class WiFiManager
   private:
 
     // WiFi setup, define secrets on global enveiroment
-    const char *ssid         = "Apto202A";
+    const char *ssid         = "susu";
 
-    const char *password     = "4pt0202@";
+    const char *password     = "suzukinha";
 
     bool isEnableOTA = false;
 
