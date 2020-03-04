@@ -158,7 +158,7 @@ void calcOTPCodeAndPrintScreen() {
     struct tm timeinfo;
     char timebuf[64];
 
-    char * newCode = totp.getCode("mnmcdbop5qegxtk3fe4mdnxt2vkfvnly", 30, time( & now));
+    char * newCode = totp.getCode(<<OTP_CODE>>, 30, time( & now));
     localtime_r( & now, & timeinfo);
     strftime(timebuf, sizeof(timebuf), "%Y %a, %d %b %H:%M:%S", & timeinfo);
     if (strcmp(code, newCode) != 0) {
